@@ -12,34 +12,26 @@ import numpy as np
 import time
 from line_profiler import LineProfiler
 from collections import namedtuple
-
-
-import CoolProp.CoolProp as CP
-import CoolProp
-import numpy as np
-import time
-from line_profiler import LineProfiler
-from collections import namedtuple
 from numba import jit, njit, vectorize, int64
 
 
 def h_bifasico(G_f, fluido, d_i_tubo, P_f_in, x_f_in, q_h, HEOS_fluido, BICUBIC_fluido):
    
     # Kim e Mudawar
-    Props_vapor = BICUBIC_fluido
-    Props_vapor.update(CoolProp.PQ_INPUTS, P_f_in, 1)
-    rho_g = Props_vapor.rhomass()
-    mu_g = Props_vapor.viscosity()
-    P_crit = Props_vapor.p_critical()
-    i_g = Props_vapor.hmass()
-        
-    Props_liquido = BICUBIC_fluido
-    Props_liquido.update(CoolProp.PQ_INPUTS, P_f_in, 0)   
-    rho_l = Props_liquido.rhomass()
-    mu_l = Props_liquido.viscosity()
-    k_l = Props_liquido.conductivity()
-    Pr_l = Props_liquido.Prandtl()
-    i_l = Props_liquido.hmass()
+    Props = BICUBIC_fluido
+    
+    Props.update(CoolProp.PQ_INPUTS, P_f_in, 1)
+    rho_g = Props.rhomass()
+    mu_g = Props.viscosity()
+    P_crit = Props.p_critical()
+    i_g = Props.hmass()
+
+    Props.update(CoolProp.PQ_INPUTS, P_f_in, 0)   
+    rho_l = Props.rhomass()
+    mu_l = Props.viscosity()
+    k_l = Props.conductivity()
+    Pr_l = Props.Prandtl()
+    i_l = Props.hmass()
     
     sigma = surface_tension_global
     h_fg = i_g - i_l
@@ -80,7 +72,7 @@ def h_monofasico(G_f, fluido, d_i_tubo, P_f_in, i_f_in, BICUBIC_fluido):
 
     "Petukhov"
     f = (1.8 * np.log10(Re_d_f) - 1.5) ** (-2)
-    h_f = (k_f / d_i_tubo) * (f / 8) * (Re_d_f) * Pr_f / (1.07 + 12.7 * (f/8)**(1/2) * (Pr_f**(2/3) - 1))
+    h_f = (k_f / d_i_tubo) * (f / 8) * (Re_d_f) * Pr_f / (1.07 + 12.7 * (f / 8) ** (1/2) * (Pr_f ** (2 / 3) - 1))
     # * (1+ (d_i_tubo/L_tubo)**(2/3))
 
     "Dittus Boelter"
@@ -110,6 +102,7 @@ def calor_monofasico(m_ar, m_f, cp_ar, cp_f_in, UA, T_ar_in, T_f_in):
 
 
 def serpentina(Passes, N_elementos, Q, i_f_o, i_f_i, P_f_out, P_f_in, DP, m_f, cp_ar, m_ar, T_ar_in, T_ar_out, DP_ar, P_ar_in, P_ar_out, N_v):
+    
     # Faz o calculo das novas propriedades do fluido
 
     posição = 0
@@ -227,7 +220,6 @@ def propriedades_fluido(P_f_in, P_f_out, i_f_in, i_f_out, Q, m_f, N_v, N_element
 
 def propriedades_fluido_vec(P_f_in, P_f_out, i_f_in, i_f_out, Q, m_f, BICUBIC_fluido):
     
-
     Props = BICUBIC_fluido
     
     Props.update(CoolProp.HmassP_INPUTS, i_f_in, P_f_in)
@@ -256,15 +248,11 @@ def propriedades_fluido_vec(P_f_in, P_f_out, i_f_in, i_f_out, Q, m_f, BICUBIC_fl
         x_f_in = 1.0
     elif x_f_in <= -1.0 and i_f_in < i_liquido_in:
         x_f_in = 0.0
-    else:
-        x_f_in = x_f_in
                         
     if x_f_out <= -1.0 and i_f_out > i_vapor_out:
         x_f_out = 1.0
     elif x_f_out <= -1.0 and i_f_out < i_liquido_out:
         x_f_out = 0.0
-    else:
-        x_f_out = x_f_out
     
     if x_f_in >= 1.0 or x_f_in <= 0.0:
         cp_f_in = cp_f_in
@@ -356,7 +344,6 @@ def propriedades_ar_vec(P_ar_in, P_ar_out, T_ar_in, T_ar_out, HEOS_Ar):
     mu_ar_out = Props_ar.viscosity()
     Pr_ar_out = Props_ar.Prandtl()
             
-
     return rho_ar_in, rho_ar_out, cp_ar_in, cp_ar_out, mu_ar_in, mu_ar_out, Pr_ar_in, Pr_ar_out
 
 
@@ -517,15 +504,14 @@ def fatores(V_ar_core, rho_ar_in, mu_ar_in, D_h):
 
 def calor_tubo(G_f, fracao_vapor, fracao_bifasico, eta_aleta, cp_f_in, cp_f_out, \
                 i_f_in, i_f_out, P_f_in, P_f_out, h_ar, A_total_elemento, m_ar, m_f, cp_ar_in, T_f_in, T_ar_in, \
-                    x_f_in, x_f_out, fluido, L_elemento, P_i_tubo, rug, d_h_canal, BICUBIC_fluido, q_h):
+                    x_f_in, x_f_out, fluido, L_elemento, P_i_tubo, rug, d_h_canal, q_h, BICUBIC_fluido, HEOS_fluido):
 
     x_f_mean = (x_f_in + x_f_out) / 2
     P_f_mean = (P_f_in + P_f_out) / 2
     i_f_mean = (i_f_in + i_f_out) / 2
     cp_f_mean = (cp_f_in + cp_f_out) / 2
     
-    Props_liquido = BICUBIC_fluido
-    Props_vapor = BICUBIC_fluido
+    Props = BICUBIC_fluido
        
     if fracao_vapor == 1.0 and fracao_bifasico == 0.0:  # Somente vapor
 
@@ -538,21 +524,22 @@ def calor_tubo(G_f, fracao_vapor, fracao_bifasico, eta_aleta, cp_f_in, cp_f_out,
     elif fracao_vapor > 0.0 and fracao_bifasico > 0.0:  # se tem vapor superaquecido e escoamento bifásico
         
         # Propriedades do vapor para utilizar como média
-        Props_vapor.update(CoolProp.PQ_INPUTS, P_f_in, 1.0)                    
-        i_f_vapor = Props_vapor.hmass()
-        cp_f_vapor = Props_vapor.cpmass()
+        Props.update(CoolProp.PQ_INPUTS, P_f_in, 1.0)                    
+        i_f_vapor = Props.hmass()
+        cp_f_vapor = Props.cpmass()
         
         # Valores monofásicos
-        h_f = h_monofasico(G_f, fluido, d_h_canal, P_f_mean, (i_f_in + i_f_vapor) / 2, BICUBIC_fluido)
+        h_f = h_monofasico(G_f, fluido, d_h_canal, P_f_mean, (i_f_out + i_f_vapor) / 2, BICUBIC_fluido)
         UA_mono = (1 / (h_f * L_elemento * P_i_tubo * fracao_vapor) + 1 / (eta_aleta * h_ar * A_total_elemento * fracao_vapor))**-1
-        Q_mono = calor_monofasico(fracao_vapor * m_ar, m_f, cp_ar_in, (cp_f_in + cp_f_vapor) / 2, UA_mono, T_ar_in, T_f_in)
-        DP_mono = DP_monofasico(fluido, P_f_mean, (i_f_in + i_f_vapor) / 2, G_f, d_h_canal, fracao_vapor * L_elemento, rug, BICUBIC_fluido)  # Queda de pressão
+        Q_mono = calor_monofasico(fracao_vapor * m_ar, m_f, cp_ar_in, (cp_f_out + cp_f_vapor) / 2, UA_mono, T_ar_in, T_f_in)
+        DP_mono = DP_monofasico(fluido, P_f_mean, (i_f_out + i_f_vapor) / 2, G_f, d_h_canal, fracao_vapor * L_elemento, rug, BICUBIC_fluido)  # Queda de pressão
         H_f = h_f
         
+        # Valores bifásicos
         h_f = h_bifasico(G_f, fluido, d_h_canal, P_f_mean, x_f_mean, q_h, HEOS_fluido, BICUBIC_fluido)
         UA_bif = (1 / (h_f * L_elemento * P_i_tubo * fracao_bifasico) + 1 / (eta_aleta * h_ar * A_total_elemento * fracao_bifasico))**-1
-        Q_bifasico = calor_monofasico(fracao_bifasico * m_ar, m_f, cp_ar_in, cp_f_out, UA_bif, T_ar_in, T_f_in)
-        DP_bif = DP_bifasico(fluido, P_f_in, i_f_in, (x_f_in + x_f_out) / 2, G_f, d_h_canal, fracao_bifasico * L_elemento, q_h, HEOS_fluido, BICUBIC_fluido)
+        Q_bifasico = calor_monofasico(fracao_bifasico * m_ar, m_f, cp_ar_in, cp_f_in, UA_bif, T_ar_in, T_f_in)
+        DP_bif = DP_bifasico(fluido, P_f_in, i_f_in, x_f_mean, G_f, d_h_canal, fracao_bifasico * L_elemento, q_h, HEOS_fluido, BICUBIC_fluido)
         
         H_f += h_f
         UA = UA_mono + UA_bif
@@ -561,48 +548,47 @@ def calor_tubo(G_f, fracao_vapor, fracao_bifasico, eta_aleta, cp_f_in, cp_f_out,
 
     elif fracao_vapor == 0.0 and fracao_bifasico == 1.0:  # só tem escoamento bifásico
         
-
         h_f = h_bifasico(G_f, fluido, d_h_canal, P_f_mean, x_f_mean, q_h, HEOS_fluido, BICUBIC_fluido)
         H_f = h_f      
         UA = (1 / (h_f * L_elemento * P_i_tubo * fracao_bifasico) + 1 / (eta_aleta * h_ar * A_total_elemento * fracao_bifasico))**-1
         Q = calor_monofasico(fracao_bifasico * m_ar, m_f, cp_ar_in, cp_f_mean, UA, T_ar_in, T_f_in)
         DP = DP_bifasico(fluido, P_f_mean, i_f_mean, x_f_mean, G_f, d_h_canal, fracao_bifasico * L_elemento, q_h, HEOS_fluido, BICUBIC_fluido)
        
-    elif fracao_vapor == 0 and fracao_bifasico > 0:  # Região com escoamento bifásico e líquido
+    # elif fracao_vapor == 0 and fracao_bifasico > 0:  # Região com escoamento bifásico e líquido
         
-        # Valores bifásico
-        Props_liquido.update(CoolProp.PQ_INPUTS, P_f_in, 0)
-        i_f_liq = Props_liquido.hmass()
-        cp_f_liq = Props_liquido.cpmass()
+    #     # Valores bifásico
+    #     Props.update(CoolProp.PQ_INPUTS, P_f_in, 0)
+    #     i_f_liq = Props.hmass()
+    #     cp_f_liq = Props.cpmass()
         
-        if x_f_mean > 0.02:
-            h_f = h_bifasico(G_f, fluido, d_h_canal, P_f_mean, x_f_mean, q_h, HEOS_fluido, BICUBIC_fluido)
-        else:
-            h_f = h_monofasico(G_f, fluido, d_h_canal, P_f_mean, i_f_mean, BICUBIC_fluido)
+    #     if x_f_mean > 0.02:
+    #         h_f = h_bifasico(G_f, fluido, d_h_canal, P_f_mean, x_f_mean, q_h, HEOS_fluido, BICUBIC_fluido)
+    #     else:
+    #         h_f = h_monofasico(G_f, fluido, d_h_canal, P_f_mean, i_f_mean, BICUBIC_fluido)
 
-        H_f = h_f
-        UA_bif = (1 / (h_f * L_elemento * P_i_tubo * fracao_bifasico) + 1 / (eta_aleta * h_ar * A_total_elemento * fracao_bifasico))**-1
-        Q_bifasico = calor_monofasico(fracao_bifasico * m_ar, m_f, cp_ar_in, cp_f_in, UA_bif, T_ar_in, T_f_in)
-        DP_bif = DP_bifasico(fluido, P_f_mean, (i_f_in + i_f_liq) / 2, (x_f_in + 0) / 2, G_f, d_h_canal, fracao_bifasico * L_elemento, HEOS_fluido, BICUBIC_fluido)
+    #     H_f = h_f
+    #     UA_bif = (1 / (h_f * L_elemento * P_i_tubo * fracao_bifasico) + 1 / (eta_aleta * h_ar * A_total_elemento * fracao_bifasico))**-1
+    #     Q_bifasico = calor_monofasico(fracao_bifasico * m_ar, m_f, cp_ar_in, cp_f_in, UA_bif, T_ar_in, T_f_in)
+    #     DP_bif = DP_bifasico(fluido, P_f_mean, (i_f_in + i_f_liq) / 2, (x_f_in + 0) / 2, G_f, d_h_canal, fracao_bifasico * L_elemento, HEOS_fluido, BICUBIC_fluido)
         
-        # Valores monofásicos
-        h_f = h_monofasico(G_f, fluido, d_h_canal, P_f_mean, (i_f_liq + i_f_out) / 2, BICUBIC_fluido)
-        UA_mono = (1 / (h_f * L_elemento * P_i_tubo * (1 - fracao_bifasico)) + 1 / (eta_aleta * h_ar * A_total_elemento * (1 - fracao_bifasico)))**-1
-        Q_mono = calor_monofasico((1 - fracao_bifasico) * m_ar, m_f, cp_ar_in, (cp_f_liq + cp_f_out) / 2, UA_mono, T_ar_in, T_f_in)
-        DP_mono = DP_monofasico(fluido, P_f_mean, (i_f_liq + i_f_out) / 2, G_f, d_h_canal, (1 - fracao_bifasico) * L_elemento, rug, BICUBIC_fluido)  # Queda de pressão
-        H_f += h_f
+    #     # Valores monofásicos
+    #     h_f = h_monofasico(G_f, fluido, d_h_canal, P_f_mean, (i_f_liq + i_f_out) / 2, BICUBIC_fluido)
+    #     UA_mono = (1 / (h_f * L_elemento * P_i_tubo * (1 - fracao_bifasico)) + 1 / (eta_aleta * h_ar * A_total_elemento * (1 - fracao_bifasico)))**-1
+    #     Q_mono = calor_monofasico((1 - fracao_bifasico) * m_ar, m_f, cp_ar_in, (cp_f_liq + cp_f_out) / 2, UA_mono, T_ar_in, T_f_in)
+    #     DP_mono = DP_monofasico(fluido, P_f_mean, (i_f_liq + i_f_out) / 2, G_f, d_h_canal, (1 - fracao_bifasico) * L_elemento, rug, BICUBIC_fluido)  # Queda de pressão
+    #     H_f += h_f
         
-        UA = UA_mono + UA_bif
-        Q = Q_mono + Q_bifasico
-        DP = DP_mono + DP_bif
+    #     UA = UA_mono + UA_bif
+    #     Q = Q_mono + Q_bifasico
+    #     DP = DP_mono + DP_bif
 
-    elif fracao_vapor == 0 and fracao_bifasico == 0:  # só liquido
+    # elif fracao_vapor == 0 and fracao_bifasico == 0:  # só liquido
         
-        h_f = h_monofasico(G_f, fluido, d_h_canal, P_f_mean, i_f_mean, BICUBIC_fluido)
-        UA = (1 / (h_f * L_elemento * P_i_tubo) + 1 / (eta_aleta * h_ar * A_total_elemento))**-1
-        Q = calor_monofasico(m_ar, m_f, cp_ar_in, cp_f_mean, UA, T_ar_in, T_f_in)
-        DP = DP_monofasico(fluido, P_f_mean, i_f_mean, G_f, d_h_canal, L_elemento, rug, BICUBIC_fluido)  # Queda de pressão
-        H_f = h_f
+    #     h_f = h_monofasico(G_f, fluido, d_h_canal, P_f_mean, i_f_mean, BICUBIC_fluido)
+    #     UA = (1 / (h_f * L_elemento * P_i_tubo) + 1 / (eta_aleta * h_ar * A_total_elemento))**-1
+    #     Q = calor_monofasico(m_ar, m_f, cp_ar_in, cp_f_mean, UA, T_ar_in, T_f_in)
+    #     DP = DP_monofasico(fluido, P_f_mean, i_f_mean, G_f, d_h_canal, L_elemento, rug, BICUBIC_fluido)  # Queda de pressão
+    #     H_f = h_f
 
     return H_f, UA, DP, Q
 
@@ -610,7 +596,6 @@ def calor_tubo(G_f, fracao_vapor, fracao_bifasico, eta_aleta, cp_f_in, cp_f_out,
 def evaporador(Passes, m_f_total, N_elementos, N_canais, A_canal, P_f_inlet, T_f_inlet, x_f_inlet, fluido, P_ar_inlet, T_ar_inlet, V_ar_inlet, A_f, sigma, D_h, d_h_canal, P_i_tubo, A_total, A_min, L_tubo):
     
     # Propriedades dos fluidos
-    global HEOS_fluido
     HEOS_fluido = CoolProp.AbstractState("HEOS", fluido)
     BICUBIC_fluido = CoolProp.AbstractState("BICUBIC", fluido)
     HEOS_Ar = CoolProp.AbstractState("HEOS", "Air")
@@ -688,10 +673,7 @@ def evaporador(Passes, m_f_total, N_elementos, N_canais, A_canal, P_f_inlet, T_f
     start = time.time()
     tempo = [0]
     it = [0]
-    
-    Props_liquido = BICUBIC_fluido
-    Props_vapor = BICUBIC_fluido
-    
+        
     # Vetorização de funções
     props_ar_vec = np.vectorize(propriedades_ar_vec)
     props_fluido_vec = np.vectorize(propriedades_fluido_vec)
@@ -808,7 +790,7 @@ def evaporador(Passes, m_f_total, N_elementos, N_canais, A_canal, P_f_inlet, T_f
         
         H_f, UA, DP, Q = calor_tubo_vec(G_f, fracao_vapor, fracao_bifasico, eta_aleta, cp_f_in, cp_f_out, \
                         i_f_in, i_f_out, P_f_in, P_f_out, h_ar, A_total_elemento, m_ar, m_f, cp_ar_in, T_f_in, T_ar_in, \
-                            x_f_in, x_f_out, fluido, L_elemento, P_i_tubo, rug, d_h_canal, BICUBIC_fluido, Q / (L_elemento * P_i_tubo))
+                            x_f_in, x_f_out, fluido, L_elemento, P_i_tubo, rug, d_h_canal,  Q / (L_elemento * P_i_tubo), BICUBIC_fluido, HEOS_fluido)
         
         Q_ar_old = m_ar * cp_ar_in * (T_ar_out - T_ar_in)
         Q_f_old = m_f * (i_f_in - i_f_out)
@@ -821,12 +803,7 @@ def evaporador(Passes, m_f_total, N_elementos, N_canais, A_canal, P_f_inlet, T_f
  
         Q_ar = m_ar * cp_ar_in * (T_ar_out - T_ar_in)
         Q_f = m_f * (i_f_in - i_f_out)
-        
-        x_f_mean = np.mean(np.array([x_f_in,x_f_out]), axis = 0)
-        P_f_mean = np.mean(np.array([P_f_in,P_f_out]), axis = 0)
-        i_f_mean = np.mean(np.array([i_f_in,i_f_out]), axis = 0)
-        cp_f_mean = np.mean(np.array([cp_f_in,cp_f_out]), axis = 0)
-        
+                
         # Erros
         Residuo_ar = Q_ar - Q_ar_old
         Residuo_fluido = Q_f - Q_f_old
@@ -849,10 +826,12 @@ def evaporador(Passes, m_f_total, N_elementos, N_canais, A_canal, P_f_inlet, T_f
     Q_total = sum(sum(Q))
     print("Q_total: {}".format(Q_total))
  
-    Output = namedtuple('Output', 'Q_total T_f_in f_vapor f_bifasico x_in x_out UA i_f_in i_f_out Q P_f_in P_f_out m_f G_f h_f h_ar')
+    Output = namedtuple('Output', 'Q_total T_f_in T_f_out f_vapor f_bifasico x_in x_out UA \
+                        i_f_in i_f_out Q P_f_in P_f_out m_f G_f h_f h_ar')
     HX = Output(
         Q_total = Q_total,
         T_f_in = T_f_in,
+        T_f_out = T_f_out,
         f_vapor = fracao_vapor,
         f_bifasico = fracao_bifasico,
         x_in = x_f_in,
@@ -964,7 +943,7 @@ def main():
     
     # Novo trocador de calor
     Passes = np.array([25, 15, 10])  # Incluido no outro programa
-    N_elementos = 16
+    N_elementos = 5
     N_v = sum(Passes)
     L_tubo = 500e-3
     H = 11.125 * N_v * 1e-3
