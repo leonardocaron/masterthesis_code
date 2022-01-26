@@ -943,7 +943,7 @@ def main():
     
     # Novo trocador de calor
     Passes = np.array([25, 15, 10])  # Incluido no outro programa
-    N_elementos = 5
+    N_elementos = 15
     N_v = sum(Passes)
     L_tubo = 500e-3
     H = 11.125 * N_v * 1e-3

@@ -601,7 +601,7 @@ def calor_tubo(G_f, fracao_vapor, fracao_bifasico, eta_aleta, cp_f_in, cp_f_out,
         Q = calor_monofasico(m_ar, m_f, cp_ar_in, cp_f_mean, UA, T_ar_in, T_f_in)
         DP = DP_monofasico(fluido, P_f_mean, i_f_mean, G_f, d_h_canal, L_elemento, rug, BICUBIC_fluido)  # Queda de pressão
         H_f = h_f
-
+    
     return H_f, UA, DP, Q
 
 
@@ -648,19 +648,13 @@ def condensador(Passes, m_f_total, N_elementos, N_canais, A_canal, P_f_inlet, T_
     # Condição inicial para o fluído, declaração de cada variável
     x_f_in, x_f_out = np.ones((N_v, N_elementos)), np.ones((N_v, N_elementos))
     P_f_in, P_f_out = np.full((N_v, N_elementos), P_f_inlet), np.full((N_v, N_elementos), P_f_inlet)
-    T_f_in, T_f_out = np.full((N_v, N_elementos), T_f_sat), np.full((N_v, N_elementos), T_f_sat)
+    T_f_in, T_f_out = np.full((N_v, N_elementos), T_f_sat), np.full((N_v, N_elementos), T_f_sat)    
     i_f_in, i_f_out = np.full((N_v, N_elementos), CP.PropsSI('H', 'P', P_f_inlet, 'T', T_f_inlet, fluido)), np.full((N_v, N_elementos), CP.PropsSI('H', 'P', P_f_inlet, 'T', T_f_inlet, fluido))
     cp_f_in, cp_f_out = np.full((N_v, N_elementos), CP.PropsSI('C', 'P', P_f_inlet, 'T', T_f_inlet, fluido)), np.full((N_v, N_elementos), CP.PropsSI('C', 'P', P_f_inlet, 'T', T_f_inlet, fluido))
-
-    # Valores médios para o fluido
-    x_f_mean = np.mean(np.array([x_f_in,x_f_out]), axis = 0)
-    P_f_mean = np.mean(np.array([P_f_in,P_f_out]), axis = 0)
-    i_f_mean = np.mean(np.array([i_f_in,i_f_out]), axis = 0)
-    cp_f_mean = np.mean(np.array([cp_f_in,cp_f_out]), axis = 0)
-
+    
     # Condição inicial para o ar
     P_ar_in, P_ar_out = np.full((N_v, N_elementos), P_ar_inlet), np.full((N_v, N_elementos), P_ar_inlet)
-    T_ar_in, T_ar_out = np.full((N_v, N_elementos), T_ar_inlet), np.full((N_v,N_elementos), T_ar_inlet)
+    T_ar_in, T_ar_out = np.full((N_v, N_elementos), T_ar_inlet), np.full((N_v,N_elementos), T_ar_inlet + 10)
     T_ar_medio = (T_ar_in + T_ar_out) / 2
     cp_ar_in, cp_ar_out = np.full((N_v, N_elementos), CP.PropsSI('C', 'P', P_ar_inlet, 'T', T_ar_inlet, 'air')), np.full((N_v, N_elementos), CP.PropsSI('C', 'P', P_ar_inlet, 'T', T_ar_inlet, 'air'))
     rho_ar_in, rho_ar_out = np.full((N_v, N_elementos), CP.PropsSI('D', 'P', P_ar_inlet, 'T', T_ar_inlet, 'air')), np.full((N_v, N_elementos), CP.PropsSI('D', 'P', P_ar_inlet, 'T', T_ar_inlet, 'air'))
@@ -686,14 +680,11 @@ def condensador(Passes, m_f_total, N_elementos, N_canais, A_canal, P_f_inlet, T_
     tempo = [0]
     it = [0]
     
-    Props_liquido = BICUBIC_fluido
-    Props_vapor = BICUBIC_fluido
-    
     # Vetorização de funções
     props_ar_vec = np.vectorize(propriedades_ar_vec)
     props_fluido_vec = np.vectorize(propriedades_fluido_vec)
     calor_tubo_vec = np.vectorize(calor_tubo)
-    
+
     while (Erro[-1] > 1e-3):
 
         # Computo da velocidade do core
@@ -826,7 +817,7 @@ def condensador(Passes, m_f_total, N_elementos, N_canais, A_canal, P_f_inlet, T_
         Erro_fluido = np.sqrt(sum(sum(Residuo_fluido ** 2)))
         Erro_ar = np.sqrt(sum(sum(Residuo_ar ** 2)))
         Erro_ar_fluido = np.sqrt(sum(sum(Residuo_ar_fluido ** 2)))
-        
+               
         Erro.append(max(Erro_fluido, Erro_ar, Erro_ar_fluido))
         tempo.append(time.time()-start)
         it.append(it[-1]+1)
@@ -839,7 +830,7 @@ def condensador(Passes, m_f_total, N_elementos, N_canais, A_canal, P_f_inlet, T_
         
     Q_total = sum(sum(Q))
     print("Q_total: {}".format(Q_total))
- 
+
     Output = namedtuple('Output', 'Q_total T_f_in f_vapor f_bifasico x_in x_out UA i_f_in i_f_out Q P_f_in P_f_out m_f G_f h_f h_ar')
     HX = Output(
         Q_total = Q_total,
@@ -991,7 +982,7 @@ if __name__ == "__main__":
     
     # lprofiler = LineProfiler()
     # lprofiler.add_function(condensador)
-    # # lprofiler.add_function(h_bifasico)
+    # # lprofiler.add_function(DP_bifasico)
     # # lprofiler.add_function(propriedades_ar)
     # lp_wrapper = lprofiler(main)
     
