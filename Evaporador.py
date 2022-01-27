@@ -54,7 +54,7 @@ def h_bifasico(G_f, fluido, d_i_tubo, P_f_in, x_f_in, q_h, HEOS_fluido, BICUBIC_
    
     # Li and Wu
     Bd = 9.81 * (rho_l - rho_g) * d_i_tubo ** 2 / sigma
-    h_tp2 = 334 * Bo ** 0.3 * (Bd * Re_l ** 0.36) ** 0.4 * k_l / d_i_tubo
+    h_tp = 334 * Bo ** 0.3 * (Bd * Re_l ** 0.36) ** 0.4 * k_l / d_i_tubo
     
    
     return h_tp
@@ -95,6 +95,7 @@ def calor_monofasico(m_ar, m_f, cp_ar, cp_f_in, UA, T_ar_in, T_f_in):
     NTU = UA / C_min
 
     efi_hx = 1 - np.exp((NTU**0.22 / C_r) * (np.exp(-C_r * NTU**0.78) - 1))
+
     Q_max = C_min * abs(T_ar_in - T_f_in)
     Q = efi_hx * Q_max
 
@@ -639,6 +640,7 @@ def evaporador(Passes, m_f_total, N_elementos, N_canais, A_canal, P_f_inlet, T_f
     T_f_in, T_f_out = np.full((N_v, N_elementos), T_f_sat), np.full((N_v, N_elementos), T_f_sat)
     i_f_in, i_f_out = np.full((N_v, N_elementos), CP.PropsSI('H', 'P', P_f_inlet, 'Q', x_f_inlet, fluido)), np.full((N_v, N_elementos), CP.PropsSI('H', 'P', P_f_inlet, 'Q', x_f_inlet, fluido))
     cp_f_in, cp_f_out = np.full((N_v, N_elementos), CP.PropsSI('C', 'P', P_f_inlet, 'Q', x_f_inlet, fluido)), np.full((N_v, N_elementos), CP.PropsSI('C', 'P', P_f_inlet, 'Q', x_f_inlet, fluido))
+    cp_f_in, cp_f_out = np.full((N_v, N_elementos), 100000000.0), np.full((N_v, N_elementos), 100000000.0)
 
     # Valores médios para o fluido
     x_f_mean = np.mean(np.array([x_f_in,x_f_out]), axis = 0)
@@ -800,7 +802,7 @@ def evaporador(Passes, m_f_total, N_elementos, N_canais, A_canal, P_f_inlet, T_f
         # rho_ar_in, rho_ar_out, cp_ar_in, cp_ar_out, mu_ar_in, mu_ar_out, Pr_ar_in, Pr_ar_out = propriedades_ar(P_ar_in, P_ar_out, T_ar_in, T_ar_out, N_v, N_elementos, HEOS_Ar)      
         rho_ar_in, rho_ar_out, cp_ar_in, cp_ar_out, mu_ar_in, mu_ar_out, Pr_ar_in, Pr_ar_out = props_ar_vec(P_ar_in, P_ar_out, T_ar_in, T_ar_out, HEOS_Ar)
         x_f_in, x_f_out, cp_f_in, cp_f_out, T_f_in, T_f_out, fracao_vapor, fracao_bifasico = props_fluido_vec(P_f_in, P_f_out, i_f_in, i_f_out, Q, m_f, BICUBIC_fluido)
- 
+        
         Q_ar = m_ar * cp_ar_in * (T_ar_out - T_ar_in)
         Q_f = m_f * (i_f_in - i_f_out)
                 
@@ -824,7 +826,7 @@ def evaporador(Passes, m_f_total, N_elementos, N_canais, A_canal, P_f_inlet, T_f
         abc += 1
     
     Q_total = sum(sum(Q))
-    print("Q_total: {}".format(Q_total))
+    print("Q_evap: {}".format(Q_total))
  
     Output = namedtuple('Output', 'Q_total T_f_in T_f_out f_vapor f_bifasico x_in x_out UA \
                         i_f_in i_f_out Q P_f_in P_f_out m_f G_f h_f h_ar')

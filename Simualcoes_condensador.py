@@ -131,7 +131,7 @@ V_ar_inlet = m_ar_inlet / (rho_ar_inlet * A_f)
 V_ar_inlet = 10/3.6
 
 
-N_elementos = list(range(2,50,2))
+N_elementos = list(range(2,100,2))
 for i, N_elemento in enumerate(N_elementos):
     
     start = time.time()
