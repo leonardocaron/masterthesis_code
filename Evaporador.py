@@ -54,7 +54,7 @@ def h_bifasico(G_f, fluido, d_i_tubo, P_f_in, x_f_in, q_h, HEOS_fluido, BICUBIC_
    
     # Li and Wu
     Bd = 9.81 * (rho_l - rho_g) * d_i_tubo ** 2 / sigma
-    h_tp = 334 * Bo ** 0.3 * (Bd * Re_l ** 0.36) ** 0.4 * k_l / d_i_tubo
+    h_tp2 = 334 * Bo ** 0.3 * (Bd * Re_l ** 0.36) ** 0.4 * k_l / d_i_tubo
     
    
     return h_tp

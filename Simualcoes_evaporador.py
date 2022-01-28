@@ -5,7 +5,7 @@ Created on Mon Nov  8 15:32:18 2021
 @author: Usuário
 """
 
-import Condensador
+import Evaporador
 import numpy as np
 import CoolProp.CoolProp as CP
 import time
@@ -104,7 +104,7 @@ dif = []
 Q = []
 
 # Novo trocador de calor
-Passes = np.array([25, 15, 10])  # Incluido no outro programa
+Passes = np.array([10, 15, 25])  # Incluido no outro programa
 N_v = sum(Passes)
 L_tubo = 500e-3
 H = 11.125 * N_v * 1e-3
@@ -118,24 +118,25 @@ D_h = 4 * sigma / beta
 
 # Propriedades do fluido na entrada
 fluido = 'R134a'
-T_f_sat = 45.4 + 273.15
+T_f_sat = 5 + 273.15
 P_f_inlet = CP.PropsSI('P', 'T', T_f_sat, 'Q', 0.5, fluido)
-T_f_inlet = T_f_sat + 30
-m_f_total = (80 / 3600) #total na entrada
+T_f_inlet = T_f_sat
+m_f_total = (90 / 3600) #total na entrada
+x_f_inlet = 0.3
 
 # Propriedades do ar na entrada
-T_ar_inlet = 35 + 273.15
+T_ar_inlet = 15 + 273.15
 P_ar_inlet = 101.3e3
 rho_ar_inlet = CP.PropsSI('D', 'P', P_ar_inlet, 'T', T_ar_inlet, 'air')
 V_ar_inlet = m_ar_inlet / (rho_ar_inlet * A_f)
-V_ar_inlet = 10/3.6
+V_ar_inlet = 5/3.6
 
 
-N_elementos = list(range(2,20,2))
+N_elementos = list(range(1,20,2))
 for i, N_elemento in enumerate(N_elementos):
     
     start = time.time()
-    HX = Condensador.condensador(Passes, m_f_total, N_elemento, N_canais, A_canal, P_f_inlet, T_f_inlet, fluido, P_ar_inlet, T_ar_inlet, V_ar_inlet, A_f, sigma, D_h, d_h_canal, P_i_tubo, A_total, A_min, L_tubo)
+    HX = Evaporador.evaporador(Passes, m_f_total, N_elemento, N_canais, A_canal, P_f_inlet, T_f_inlet, x_f_inlet, fluido, P_ar_inlet, T_ar_inlet, V_ar_inlet, A_f, sigma, D_h, d_h_canal, P_i_tubo, A_total, A_min, L_tubo)
     finish = time.time()
     
     fracao_vapor = HX.f_vapor
@@ -260,8 +261,8 @@ for i, N_elemento in enumerate(N_elementos):
     plt.title('Temperature x Length')
     for line in range(1,N_v+1):
         plt.axhline(y = line-0.5, color = 'black', linestyle='-.', linewidth = 0.3)
-    plt.axhline(y = 25.5, color = 'red', linestyle='--')
-    plt.axhline(y = 40.5, color = 'red', linestyle='--')
+    plt.axhline(y = Passes[0] + 0.5, color = 'red', linestyle='--')
+    plt.axhline(y = sum(Passes[0:2]) + 0.5, color = 'red', linestyle='--')
     
     # Plota distribuição do título
     A_elemento = 0.005480061120630762
